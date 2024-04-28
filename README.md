@@ -1,3 +1,3 @@
-# Logless
+# Legion Enhancement Suite (LES)
 
-Removes all logs from the game
+Memes and improvements, WIP
