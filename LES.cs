@@ -13,6 +13,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
 using BepInEx.Configuration;
+using System.Data;
 
 namespace LES
 {
@@ -96,12 +97,13 @@ namespace LES
                     {
                         int player = int.Parse(content.Split(')')[0].Split('(')[1]);
                         string name = Scoreboard.GetName(ushort.Parse(player.ToString()));
-                        if (name == "Ruben B")
+                        if (name.Contains(":Ruben B") && this.ruby != null)
                         {
-                            if (this.ruby != null)
-                            {
-                                SfxApi.PlayGlobalSound(this.ruby);
-                            }
+                            SfxApi.PlayGlobalSound(this.ruby);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Ruby ruben: Player leaked, but it wasn't ruby ruben :sad " + name);
                         }
                     }
                     catch (Exception ex)
