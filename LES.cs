@@ -25,6 +25,7 @@ namespace LES
     {
         private Timer timer = new Timer();
         private AudioClip ruby;
+        private AudioClip fucked;
         private ConfigEntry<bool> configRubyOnLaunch;
 
         public void Awake() {
@@ -45,34 +46,47 @@ namespace LES
 
             string basePath = AppDomain.CurrentDomain.BaseDirectory;
             FileInfo rubyPath = new FileInfo(basePath + $@"\bepinex\ruby.mp3");
+            FileInfo fuckedPath = new FileInfo(basePath + $@"\bepinex\fucked.mp3");
 
-            if (!rubyPath.Exists)
+            List<FileInfo> files = new List<FileInfo>();
+            files.Add(rubyPath);
+            files.Add(fuckedPath);
+
+            foreach (FileInfo file in files)
             {
-                try
+                if (!file.Exists)
                 {
-                    string[] resources = Assembly.GetExecutingAssembly().GetManifestResourceNames();
-                    string resource = resources.First(r => r.EndsWith("ruby.mp3"));
-                    if (resource != null)
+                    String fileName = Path.GetFileName(file.Name);
+                    try
                     {
-                        Logger.LogInfo("Found this resource: " + resource);
-                        using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource))
+                        string[] resources = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+                        string resource = resources.First(r => r.EndsWith(fileName));
+                        if (resource != null)
                         {
-                            Logger.LogInfo("Opened readstream to read this badaboio");
-                            using (FileStream rubyStream = rubyPath.OpenWrite())
+                            Logger.LogInfo("Found this resource: " + resource);
+                            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource))
                             {
-                                stream.CopyTo(rubyStream);
+                                Logger.LogInfo("Opened readstream to read this badaboio");
+                                using (FileStream fileStream = file.OpenWrite())
+                                {
+                                    stream.CopyTo(fileStream);
+                                }
                             }
                         }
-                    }   
-                }
-                catch (Exception e)
-                {
-                    Logger.LogError(e.ToString());
-                    Logger.LogError(e.StackTrace);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e.ToString());
+                        Logger.LogError(e.StackTrace);
+                    }
                 }
             }
+
             StartCoroutine(GetAudioClip(rubyPath));
             Logger.LogInfo("Attempting to load mp3 file " + rubyPath.ToString());
+
+            StartCoroutine(GetAudioClip(fuckedPath));
+            Logger.LogInfo("Attempting to load mp3 file " + fuckedPath.ToString());
 
             Logger.LogInfo($"Plugin LES is loaded!");
         }
@@ -92,6 +106,18 @@ namespace LES
                 }
                 if (content.Contains("leak"))
                 {
+                    Console.WriteLine("Somebody leaked. Here's the content: " + content);
+                    var match = System.Text.RegularExpressions.Regex.Match(content, @"\((\d+)%\)");
+                    if (match.Success)
+                    {
+                        string percentage = match.Groups[1].Value; // "50"
+                        int percentageInt = int.Parse(percentage);
+                        if(percentageInt >= 100 && this.fucked != null)
+                        {
+                            SfxApi.PlayGlobalSound(this.fucked);
+                        }
+                        Console.WriteLine("Leak percentage: " + percentage);
+                    }
                     // |player(1) leaked |c(ff8800):(50%)|r
                     try
                     {
@@ -129,7 +155,7 @@ namespace LES
 
             yield return webRequest.SendWebRequest();
 
-            if (webRequest.isNetworkError)
+            if (webRequest.result == UnityWebRequest.Result.ConnectionError)
             {
                 Debug.Log(webRequest.error);
             }
@@ -137,7 +163,10 @@ namespace LES
             {
                 AudioClip clip = DownloadHandlerAudioClip.GetContent(webRequest);
                 clip.name = file.Name;
-                this.ruby = clip;
+                if(file.Name.Contains("fucked"))
+                    this.fucked = clip;
+                else if (file.Name.Contains("ruby"))
+                    this.ruby = clip;
             }
         }
         public void OnDestroy() {
