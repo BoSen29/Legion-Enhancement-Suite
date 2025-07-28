@@ -8,7 +8,7 @@
     <LangVersion>latest</LangVersion>
     <PackageId>ltd2.mods.bosen29.les</PackageId>
     <Title>LES</Title>
-    <Authors>BoSen</Authors>
+    <Authors>BoSen, Madmatti</Authors>
     <NoWarn>$(NoWarn);CS0436</NoWarn>
   </PropertyGroup>
   <ItemGroup>
@@ -16,8 +16,8 @@
     <None Remove="fucked.mp3" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="ruby.mp3" />
-    <EmbeddedResource Include="fucked.mp3" />
+    <EmbeddedResource Include="sfx/ruby.mp3" />
+    <EmbeddedResource Include="sfx/fucked.mp3" />
   </ItemGroup>
   
   <ItemGroup>
@@ -51,6 +51,10 @@
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(LegionBasePath)\Legion TD 2_Data\Managed\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Natives">
+      <HintPath>$(LegionBasePath)\Legion TD 2_Data\Managed\Natives.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
