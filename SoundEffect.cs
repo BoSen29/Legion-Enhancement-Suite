@@ -21,6 +21,14 @@ namespace LES
 
         public static void Play(string clipName, float timeout)
         {
+            if (ClientApi.IsSpectator())
+            {
+                if (!Plugin.configSoundsWhileSpectating.Value)
+                {
+                    Console.WriteLine($"Skipping sound effect {clipName} because sounds while spectating are disabled.");
+                    return;
+                }
+            }
             soundEffects.TryGetValue(clipName, out AudioClip clip);
             if (clip == null)
             {

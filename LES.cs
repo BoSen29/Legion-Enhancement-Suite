@@ -6,7 +6,6 @@ using Assets.Features.Hud;
 using BepInEx.Configuration;
 using UnityEngine;
 using aag.Natives.Api;
-using aag.Natives.Lib.Primitives;
 using System.Collections.Generic;
 
 
@@ -29,6 +28,7 @@ namespace LES
         public GameObject soundMaster;
     
         public ConfigEntry<bool> configRubyOnLaunch;
+        public static ConfigEntry<bool> configSoundsWhileSpectating;
 
         private readonly Queue<float> workerQueueEventTimes = new();
 
@@ -38,6 +38,7 @@ namespace LES
             soundMaster = new GameObject("SoundMaster");
             DontDestroyOnLoad(soundMaster);
             configRubyOnLaunch = Config.Bind("Memes", "Ruby on launch", true, "Shout Ruby Ruben after 20 seconds of launching the game");
+            configSoundsWhileSpectating = Config.Bind("Memes", "Play Sounds while Spectating", true, "Play sounds while spectating. If false, only play sounds while playing the game.");
 
             try
             {
