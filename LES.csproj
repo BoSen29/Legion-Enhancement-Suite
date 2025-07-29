@@ -14,10 +14,14 @@
   <ItemGroup>
     <None Remove="ruby.mp3" />
     <None Remove="fucked.mp3" />
+    <None Remove="puuush.mp3" />
+    <None Remove="DTon3.mp3" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="sfx/ruby.mp3" />
     <EmbeddedResource Include="sfx/fucked.mp3" />
+    <EmbeddedResource Include="sfx/puuush.mp3" />
+    <EmbeddedResource Include="sfx/DTon3.mp3" />
   </ItemGroup>
   
   <ItemGroup>
