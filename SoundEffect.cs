@@ -50,7 +50,7 @@ namespace LES
         public void Initialize(string fileName)
         {
             Console.WriteLine("Creating sound effect for " + fileName);
-            FileInfo fileInfo = new(basePath + $@"\bepinex\" + fileName);
+            FileInfo fileInfo = new(basePath + fileName);
 
             // Check if the audio file exists, if not, try to load it from embedded resources
             if (!fileInfo.Exists)

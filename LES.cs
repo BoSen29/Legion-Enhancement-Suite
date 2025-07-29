@@ -5,7 +5,9 @@ using System.Timers;
 using Assets.Features.Hud;
 using BepInEx.Configuration;
 using UnityEngine;
-using System.IO;
+using aag.Natives.Api;
+using aag.Natives.Lib.Primitives;
+using System.Collections.Generic;
 
 
 
@@ -27,6 +29,8 @@ namespace LES
         public GameObject soundMaster;
     
         public ConfigEntry<bool> configRubyOnLaunch;
+
+        private readonly Queue<float> workerQueueEventTimes = new();
 
         public void Awake()
         {
@@ -52,15 +56,39 @@ namespace LES
 
             SoundEffect effect = soundMaster.AddComponent<SoundEffect>();
 
-            FileInfo rubyFileInfo = SoundEffect.GetFileInfoFromName("ruby.mp3");
-            FileInfo fuckedFileInfo = SoundEffect.GetFileInfoFromName("fucked.mp3");
 
             soundMaster.GetComponent<SoundEffect>().Initialize("ruby.mp3");
-            StartCoroutine(effect.GetAudioClip(rubyFileInfo));
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("ruby.mp3")));
             soundMaster.GetComponent<SoundEffect>().Initialize("fucked.mp3");
-            StartCoroutine(effect.GetAudioClip(fuckedFileInfo));
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("fucked.mp3")));
+            soundMaster.GetComponent<SoundEffect>().Initialize("puuush.mp3");
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("puuush.mp3")));
+            soundMaster.GetComponent<SoundEffect>().Initialize("DTon3.mp3");
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("DTon3.mp3")));
 
             Logger.LogInfo($"Plugin LES is loaded!");
+        }
+
+        public void WorkerBoughtOrQueued()
+        {
+            while (workerQueueEventTimes.Count > 0)
+            {
+                if(workerQueueEventTimes.Peek() < Time.time - 10f)
+                {
+                    workerQueueEventTimes.Dequeue();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            workerQueueEventTimes.Enqueue(Time.time);
+            Console.WriteLine("Workers pushed / queued last 10 seconds: " + workerQueueEventTimes.Count);
+            if (workerQueueEventTimes.Count > 10)
+            {
+                Console.WriteLine("More than 10 workers were queued or bought in the last 10 seconds.");
+                SoundEffect.Play("puuush.mp3", 300f);
+            }
         }
 
         public void init(object source, ElapsedEventArgs eArgs)
@@ -72,24 +100,61 @@ namespace LES
                 SoundEffect.Play("ruby.mp3", 60f);
             }
 
-            /*
-            HudApi.OnQueueHireUnit += (ushort player, short unit, string unitType) =>
+
+            HudApi.OnQueueHireUnit += (player, unit, unitType) =>
             {
                 Console.WriteLine("Mercenary was queued up but not yet hired. Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
             };
-            UnitApi.OnAnyUnitHired += (ushort player, short unit, string unitType) =>
+            //Mercenary from any player
+            UnitApi.OnAnyUnitHired += (player, unit, unitType) =>
             {
                 Console.WriteLine("Any Unit was hired. Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
             };
-            UnitApi.OnUnitHired += (ushort player, short unit, string unitType) =>
+            //Mercenary from you
+            UnitApi.OnUnitHired += (player, unit, unitType) =>
             {
                 Console.WriteLine("Unit was hired. Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
             };
-            HudApi.OnQueueTrainUnit += (ushort player, short unit, string unitType) =>
+            
+            //???
+            PlayerApi.OnUnitFinishesTraining += (unit, unitType) =>
             {
-                Console.WriteLine("Worker was queued up Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
+                Console.WriteLine("Unit finished training. Unit: " + unit + ", Type: " + unitType);
             };
-            */
+            // Tower was placed - not fired when upgrading a tower
+            PlayerApi.OnUnitBuilt += (player, unitType, point, facing) =>
+            {
+                Console.WriteLine("Unit was built. Player " + player + ", unitType: " + unitType);
+            };
+            // Tower was upgraded - not fired when placing a tower
+            PlayerApi.OnUnitUpgraded += (player, unit, unitType, sourceUnitType) =>
+            {
+                Console.WriteLine("Unit was upgraded. Player: " + player + ", Unit: " + unit + ", Type: " + unitType + ", Source Type: " + sourceUnitType);
+            };
+            //???
+            PlayerApi.OnUnitBought += (player, unit, unitType) =>
+            {
+                Console.WriteLine("Unit bought. Player: " + player + " Unit: " + unit + ", Type: " + unitType);
+            };
+            // Fired when a worker is starting to be trained. So if you queue 10 workers, this will fire like once every 2-3 seconds
+            PlayerApi.OnUnitStartsTraining += (unit, unitType) =>
+            {
+                Console.WriteLine("Unit started training. Unit: " + unit + ", Type: " + unitType);
+            };
+
+            // Fired when a worker is queued and paid for. This also fires when you just click a single worker, so there isn't really a queue
+            // This event is NOT fired, when a queued, unpaid worker is now paid for.
+            // So the number of workers one purchased is the number of times this event is fired PLUS HudApi.OnQueueTrainUnit count
+            // HOWEVER, if someone has the gold to buy a worker, but shift click buys it, both events are fired
+            PlayerApi.OnUnitAddedToTrainingQueue += (player, unit, unitType) =>
+            {
+                WorkerBoughtOrQueued();
+            };
+            // Fired when a worker is queued, but not yet paid for
+            HudApi.OnQueueTrainUnit += (player, unit, unitType) =>
+            {
+                WorkerBoughtOrQueued();
+            };
 
             HudApi.OnDisplayGameText += (header, content, duration, image) =>
             {
@@ -100,11 +165,28 @@ namespace LES
                 if (content.Contains("leak"))
                 {
                     Console.WriteLine("Somebody leaked. Here's the content: " + content);
-                    //Extract the leak percentage from the content
-                    var match = System.Text.RegularExpressions.Regex.Match(content, @"\((\d+)%\)");
-                    if (match.Success)
+                    var unitsLeakedMatch = System.Text.RegularExpressions.Regex.Matches(content, @"img\(Icons/([A-Za-z0-9_]+)\.png\)");
+                    List<string> unitNames = [];
+                    foreach (System.Text.RegularExpressions.Match match in unitsLeakedMatch)
                     {
-                        string percentage = match.Groups[1].Value; // "50"
+                        unitNames.Add(match.Groups[1].Value);
+                    }
+                    Console.WriteLine("Units leaked: " + string.Join(", ", unitNames));
+                    var waveNumber = HudApi.GetWaveNumber();
+                    if (waveNumber == 3)
+                    {
+                        if (unitNames.Count == 1 && unitNames[0] == "DragonTurtle")
+                        {
+                            Console.WriteLine("Leaked a DT on 3.");
+                            SoundEffect.Play("DTon3.mp3", 60f);
+                            return; //make sure we don't also play "fucked.mp3"
+                        }
+                    }
+                    //Extract the leak percentage from the content
+                        var leakPercentageMatch = System.Text.RegularExpressions.Regex.Match(content, @"\((\d+)%\)");
+                    if (leakPercentageMatch.Success)
+                    {
+                        string percentage = leakPercentageMatch.Groups[1].Value; // "50"
                         int percentageInt = int.Parse(percentage);
                         if (percentageInt >= 100)
                         {
