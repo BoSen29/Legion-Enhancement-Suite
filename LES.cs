@@ -9,6 +9,7 @@ using aag.Natives.Api;
 using System.Collections.Generic;
 using Assets.Features.Core;
 
+
 namespace LES
 {
     [BepInProcess("Legion TD 2.exe")]
@@ -61,7 +62,6 @@ namespace LES
             StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("abortion.mp3")));
             soundMaster.GetComponent<SoundEffect>().Initialize("fuck-you.mp3");
             StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("fuck-you.mp3")));
-
 
             Logger.LogInfo($"Plugin LES is loaded!");
         }
@@ -143,8 +143,7 @@ namespace LES
             UnitApi.OnUnitKilled += (unit, killer, bounty, bountyReceiver) =>
             {
                 Console.WriteLine("Unit killed. Unit: " + unit + ", Killer: " + killer + ", Bounty: " + bounty + ", Bounty Receiver: " + bountyReceiver);
-            };
-            */
+			};
 
             Rendering.OnUnitDies += (unit) =>
             {
