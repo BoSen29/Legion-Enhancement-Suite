@@ -7,17 +7,9 @@ using BepInEx.Configuration;
 using UnityEngine;
 using aag.Natives.Api;
 using System.Collections.Generic;
+using Assets.Features.Core;
 
 
-
-/*
-Events
-Leaking: Leak message from OnDisplayGameText (images for the mercs that were received)
-Building a unit: UnitAPI.On(Any)UnitHired
-Queueing a worker (HudAPI)
-Sending a mercenary: ??????
-MiniScoreboard: Bottom left score board
-*/
 namespace LES
 {
     [BepInProcess("Legion TD 2.exe")]
@@ -26,7 +18,7 @@ namespace LES
     {
         public readonly Timer timer = new();
         public GameObject soundMaster;
-    
+
         public ConfigEntry<bool> configRubyOnLaunch;
         public static ConfigEntry<bool> configSoundsWhileSpectating;
 
@@ -52,7 +44,7 @@ namespace LES
 
             timer.Interval = 20000;
 
-            timer.Elapsed += init;
+            timer.Elapsed += Init;
             timer.Enabled = true;
 
             SoundEffect effect = soundMaster.AddComponent<SoundEffect>();
@@ -66,6 +58,10 @@ namespace LES
             StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("puuush.mp3")));
             soundMaster.GetComponent<SoundEffect>().Initialize("DTon3.mp3");
             StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("DTon3.mp3")));
+            soundMaster.GetComponent<SoundEffect>().Initialize("abortion.mp3");
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("abortion.mp3")));
+            soundMaster.GetComponent<SoundEffect>().Initialize("fuck-you.mp3");
+            StartCoroutine(effect.GetAudioClip(SoundEffect.GetFileInfoFromName("fuck-you.mp3")));
 
             Logger.LogInfo($"Plugin LES is loaded!");
         }
@@ -74,7 +70,7 @@ namespace LES
         {
             while (workerQueueEventTimes.Count > 0)
             {
-                if(workerQueueEventTimes.Peek() < Time.time - 10f)
+                if (workerQueueEventTimes.Peek() < Time.time - 10f)
                 {
                     workerQueueEventTimes.Dequeue();
                 }
@@ -92,7 +88,7 @@ namespace LES
             }
         }
 
-        public void init(object source, ElapsedEventArgs eArgs)
+        public void Init(object source, ElapsedEventArgs eArgs)
         {
             Console.WriteLine("init called for LES plugin");
 
@@ -102,6 +98,8 @@ namespace LES
             }
 
 
+            /*
+            //Some interesting events that are not used right now, but might be useful in the future
             HudApi.OnQueueHireUnit += (player, unit, unitType) =>
             {
                 Console.WriteLine("Mercenary was queued up but not yet hired. Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
@@ -116,7 +114,7 @@ namespace LES
             {
                 Console.WriteLine("Unit was hired. Player: " + player + ", Unit: " + unit + ", Type: " + unitType);
             };
-            
+
             //???
             PlayerApi.OnUnitFinishesTraining += (unit, unitType) =>
             {
@@ -141,6 +139,20 @@ namespace LES
             PlayerApi.OnUnitStartsTraining += (unit, unitType) =>
             {
                 Console.WriteLine("Unit started training. Unit: " + unit + ", Type: " + unitType);
+            };
+            UnitApi.OnUnitKilled += (unit, killer, bounty, bountyReceiver) =>
+            {
+                Console.WriteLine("Unit killed. Unit: " + unit + ", Killer: " + killer + ", Bounty: " + bounty + ", Bounty Receiver: " + bountyReceiver);
+			};
+
+            Rendering.OnUnitDies += (unit) =>
+            {
+                var type = aag.Natives.Snapshot.UnitProperties[unit].UnitType;
+                if (type == "eggsack_unit_id")
+                {
+                    Console.WriteLine("Egg died, playing abortion.mp3");
+                    SoundEffect.Play("abortion.mp3", 60f);
+                }
             };
 
             // Fired when a worker is queued and paid for. This also fires when you just click a single worker, so there isn't really a queue
@@ -180,30 +192,37 @@ namespace LES
                         {
                             Console.WriteLine("Leaked a DT on 3.");
                             SoundEffect.Play("DTon3.mp3", 60f);
-                            return; //make sure we don't also play "fucked.mp3"
+                            return; //make sure we don't play multiple sounds that overlap
                         }
                     }
+
+
                     //Extract the leak percentage from the content
-                        var leakPercentageMatch = System.Text.RegularExpressions.Regex.Match(content, @"\((\d+)%\)");
+                    var leakPercentageMatch = System.Text.RegularExpressions.Regex.Match(content, @"\((\d+)%\)");
+                    int percentageInt = 0;
                     if (leakPercentageMatch.Success)
                     {
                         string percentage = leakPercentageMatch.Groups[1].Value; // "50"
-                        int percentageInt = int.Parse(percentage);
-                        if (percentageInt >= 100)
-                        {
-                            Console.WriteLine("Leak percentage is 100% or more, trying to play sound effect.");
-                            SoundEffect.Play("fucked.mp3", 60f);
-                        }
-                        Console.WriteLine("Leak percentage: " + percentage);
+                        percentageInt = int.Parse(percentage);
                     }
                     // |player(1) leaked |c(ff8800):(50%)|r
                     try
                     {
                         int player = int.Parse(content.Split(')')[0].Split('(')[1]);
                         string name = Scoreboard.GetName(ushort.Parse(player.ToString()));
+                        Console.WriteLine("Player " + player + " leaked. Name: " + name);
                         if (name.Contains(":Ruben B"))
                         {
                             SoundEffect.Play("ruby.mp3", 60f);
+                            return;
+                        }
+                        if (name.ToUpper().Contains(":DOOFUSMCDOOFACE"))
+                        {
+                            if (percentageInt >= 100)
+                            {
+                                Console.WriteLine("Doofus leaked 100% or more, trying to play sound effect.");
+                                SoundEffect.Play("fuck-you.mp3", 600f);
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -211,6 +230,16 @@ namespace LES
                         Console.WriteLine("Issues parsing a leak... :seenoevil:");
                         Console.WriteLine(ex.Message);
                         Console.WriteLine(ex.StackTrace);
+                    }
+
+                    if (leakPercentageMatch.Success)
+                    {
+                        if (percentageInt >= 100)
+                        {
+                            Console.WriteLine("Leak percentage is 100% or more, trying to play sound effect.");
+                            SoundEffect.Play("fucked.mp3", 60f);
+                        }
+                        Console.WriteLine("Leak percentage: " + percentageInt);
                     }
                 }
             };
